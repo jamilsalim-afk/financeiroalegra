@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Alegra - Gestão Clínica</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root { --pink-alegra: #ff69b4; --blue-alegra: #00b4d8; --bg-light: #fdf2f7; }
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        /* Layout */
+        .navbar { background-color: var(--pink-alegra) !important; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .nav-tabs .nav-link { color: #666; font-weight: 600; border: none; }
+        .nav-tabs .nav-link.active { color: var(--pink-alegra); border-bottom: 3px solid var(--pink-alegra); background: none; }
+        
+        .container-main { max-width: 1100px; margin: 20px auto; padding: 20px; }
+        .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: white; padding: 25px; margin-bottom: 20px; }
+        
+        /* Elementos Visuais */
+        .resumo-financeiro { background: var(--bg-light); border-radius: 12px; padding: 20px; border-left: 5px solid var(--pink-alegra); }
+        .valor-label { font-size: 0.85rem; color: #777; text-transform: uppercase; letter-spacing: 1px; }
+        .valor-num { font-size: 1.25rem; font-weight: 700; display: block; }
+        .btn-alegra { background-color: var(--pink-alegra); color: white; border-radius: 8px; font-weight: 600; transition: 0.3s; border: none; padding: 10px 20px; }
+        .btn-alegra:hover { background-color: #ff1493; transform: translateY(-2px); color: white; }
+        
+        /* Loading Screen */
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
+        .spinner { width: 50px; height: 50px; border: 5px solid var(--bg-light); border-top: 5px solid var(--pink-alegra); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div id="loader">
+    <div class="spinner mb-3"></div>
+    <h5 class="text-secondary">Carregando Alegra Saúde...</h5>
+</div>
+
+<nav class="navbar navbar-dark mb-4">
+    <div class="container-fluid justify-content-center">
+        <span class="navbar-brand mb-0 h1"><i class="bi bi-heart-pulse-fill me-2"></i>ALEGRA SAÚDE INFANTIL</span>
+    </div>
+</nav>
+
+<div class="container-main">
+    <ul class="nav nav-tabs mb-4 justify-content-center" id="mainTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-recebimentos"><i class="bi bi-cash-coin me-1"></i> Recebimentos</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-despesas"><i class="bi bi-cart-dash me-1"></i> Despesas</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dashboard"><i class="bi bi-graph-up-arrow me-1"></i> Dashboard</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-cadastros"><i class="bi bi-person-plus me-1"></i> Cadastros</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-recebimentos">
+            <div class="card-custom">
+                <h5 class="mb-4"><i class="bi bi-plus-circle me-2"></i>Novo Atendimento</h5>
+                <form id="formRecebimento">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Paciente</label>
+                            <input type="text" id="paciente" class="form-control" list="listaPacientes" placeholder="Pesquisar...">
+                            <datalist id="listaPacientes"></datalist>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Profissional</label>
+                            <select id="profissional" class="form-select" onchange="calcularValores()"></select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Valor Bruto</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" id="valorBruto" class="form-control" step="0.01" oninput="calcularValores()">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Forma de Pagamento</label>
+                            <select id="pagamento" class="form-select" onchange="calcularValores()">
+                                <option value="PIX">PIX / Dinheiro</option>
+                                <option value="DEBITO">Cartão de Débito</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Recibo</label>
+                            <select id="recibo" class="form-select">
+                                <option value="Não Solicitado">Não Solicitado</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Emitido">Emitido</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="resumo-financeiro mt-4 row text-center">
+                        <div class="col-md-3">
+                            <span class="valor-label">Taxa Banco</span>
+                            <span class="valor-num text-danger" id="resTaxa">R$ 0,00</span>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="valor-label">Líquido</span>
+                            <span class="valor-num" id="resLiquido">R$ 0,00</span>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="valor-label">Profissional</span>
+                            <span class="valor-num text-primary" id="resProf">R$ 0,00</span>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="valor-label">Clínica</span>
+                            <span class="valor-num text-success" id="resClinica">R$ 0,00</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-alegra w-100 mt-4" onclick="salvarRecebimento()">SALVAR LANÇAMENTO</button>
+                </form>
+            </div>
+
+            <div class="card-custom">
+                <h6 class="text-muted mb-3">Últimos Lançamentos (Clique para Editar)</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Data</th><th>Paciente</th><th>Valor</th><th>Ações</th></tr>
+                        </thead>
+                        <tbody id="tabelaRecentes"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-despesas">
+            <div class="card-custom">
+                <h5>Lançar Despesa da Clínica</h5>
+                <form id="formDespesa" class="mt-3">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Categoria</label>
+                            <select id="catDespesa" class="form-select"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Valor</label>
+                            <input type="number" id="valorDespesa" class="form-control" step="0.01">
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="temNF">
+                                <label class="form-check-label">Possui Nota Fiscal?</label>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-danger w-100 mt-4" onclick="salvarDespesa()">SALVAR DESPESA</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-dashboard">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card-custom text-center">
+                        <span class="valor-label">Faturamento Total</span>
+                        <h2 id="dashFaturamento" class="fw-bold mt-2">R$ 0,00</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card-custom text-center">
+                        <span class="valor-label">Total Repasses</span>
+                        <h2 id="dashRepasses" class="fw-bold mt-2 text-primary">R$ 0,00</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card-custom text-center">
+                        <span class="valor-label">Lucro Clínica</span>
+                        <h2 id="dashLucro" class="fw-bold mt-2 text-success">R$ 0,00</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-cadastros">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <h6><i class="bi bi-person-heart"></i> Novo Paciente</h6>
+                        <input type="text" id="cadPacNome" class="form-control mb-2" placeholder="Nome Completo">
+                        <input type="text" id="cadPacResp" class="form-control mb-2" placeholder="Responsável">
+                        <input type="text" id="cadPacContato" class="form-control mb-2" placeholder="WhatsApp">
+                        <button class="btn btn-alegra btn-sm w-100" onclick="cadastrarPaciente()">CADASTRAR</button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <h6><i class="bi bi-briefcase"></i> Nova Categoria de Despesa</h6>
+                        <input type="text" id="cadCatNome" class="form-control mb-3" placeholder="Ex: Manutenção, Papelaria...">
+                        <button class="btn btn-dark btn-sm w-100" onclick="cadastrarCategoria()">ADICIONAR CATEGORIA</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Configurações do Banco de Dados (Google Apps Script)
+    // ATENÇÃO: Substitua o link abaixo pela sua URL de Implantação do Apps Script
+    const SCRIPT_URL = "SUA_URL_DO_APPS_SCRIPT_AQUI";
+
+    let db = { profissionais: [], pacientes: [], categorias: [] };
+
+    window.onload = () => {
+        carregarDados();
+        gerarOpcoesParcelamento();
+    };
+
+    function carregarDados() {
+        fetch(SCRIPT_URL + "?action=obterDados")
+            .then(res => res.json())
+            .then(data => {
+                db = data;
+                preencherCampos();
+                document.getElementById('loader').style.display = 'none';
+            })
+            .catch(err => console.error("Erro ao carregar:", err));
+    }
+
+    function gerarOpcoesParcelamento() {
+        const select = document.getElementById('pagamento');
+        for(let i=1; i<=18; i++) {
+            let opt = document.createElement('option');
+            opt.value = "CRE_" + i;
+            opt.textContent = "Crédito " + i + "x";
+            select.appendChild(opt);
+        }
+    }
+
+    function preencherCampos() {
+        // Pacientes
+        const listPac = document.getElementById('listaPacientes');
+        listPac.innerHTML = "";
+        db.pacientes.forEach(p => listPac.innerHTML += `<option value="${p}">`);
+
+        // Profissionais
+        const selProf = document.getElementById('profissional');
+        selProf.innerHTML = '<option value="">Selecionar...</option>';
+        db.profissionais.forEach((p, i) => selProf.innerHTML += `<option value="${i}">${p[0]}</option>`);
+
+        // Categorias Despesa
+        const selCat = document.getElementById('catDespesa');
+        selCat.innerHTML = "";
+        db.categorias.forEach(c => selCat.innerHTML += `<option value="${c}">${c}</option>`);
+    }
+
+    function calcularValores() {
+        const bruto = parseFloat(document.getElementById('valorBruto').value) || 0;
+        const pIdx = document.getElementById('profissional').value;
+        const pgto = document.getElementById('pagamento').value;
+
+        if(pIdx === "" || bruto === 0) return;
+
+        const prof = db.profissionais[pIdx];
+        const percRepasse = parseFloat(prof[2]) / 100;
+        let taxaPerc = 0;
+
+        if(pgto === "DEBITO") taxaPerc = parseFloat(prof[4]);
+        else if(pgto.startsWith("CRE_")) {
+            let parcela = parseInt(pgto.split("_")[1]);
+            taxaPerc = parseFloat(prof[parcela + 4]);
+        }
+
+        const vTaxa = bruto * (taxaPerc/100);
+        const liq = bruto - vTaxa;
+        const vProf = liq * percRepasse;
+        const vClin = liq - vProf;
+
+        const f = { style: 'currency', currency: 'BRL' };
+        document.getElementById('resTaxa').textContent = vTaxa.toLocaleString('pt-BR', f);
+        document.getElementById('resLiquido').textContent = liq.toLocaleString('pt-BR', f);
+        document.getElementById('resProf').textContent = vProf.toLocaleString('pt-BR', f);
+        document.getElementById('resClinica').textContent = vClin.toLocaleString('pt-BR', f);
+
+        return { vTaxa, liq, vProf, vClin };
+    }
+
+    // FUNÇÕES DE SALVAMENTO (FETCH)
+    function salvarRecebimento() {
+        const calc = calcularValores();
+        if(!calc) return alert("Preencha todos os campos!");
+        
+        const payload = {
+            action: "salvarRecebimento",
+            paciente: document.getElementById('paciente').value,
+            prof: db.profissionais[document.getElementById('profissional').value][0],
+            bruto: document.getElementById('valorBruto').value,
+            pgto: document.getElementById('pagamento').value,
+            taxa: calc.vTaxa, liq: calc.liq, pProf: calc.vProf, pCli: calc.vClin,
+            recibo: document.getElementById('recibo').value
+        };
+
+        enviarDados(payload);
+    }
+
+    function enviarDados(obj) {
+        document.getElementById('loader').style.display = 'flex';
+        fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify(obj)
+        })
+        .then(() => {
+            alert("Sucesso!");
+            location.reload();
+        });
+    }
+
+    // Outras funções (Cadastros) seguem a mesma lógica de fetch...
+</script>
+
+</body>
+</html>
